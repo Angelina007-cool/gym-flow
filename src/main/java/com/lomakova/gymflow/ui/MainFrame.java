@@ -5,6 +5,7 @@ import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.UserRepository;
+import com.lomakova.gymflow.service.ExportService;
 import com.lomakova.gymflow.service.GymService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,9 @@ public class MainFrame extends JFrame {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GymService gymService;
+    private final ExportService exportService;
+
+    private UserEntity currentUser;
 
     private JComboBox<GroupEntity> groupCombo;
     private JComboBox<UserEntity> memberCombo;
@@ -152,27 +156,42 @@ public class MainFrame extends JFrame {
         });
 
         renewButton.addActionListener(e -> {
-            UserEntity selectedMember = (UserEntity) memberCombo.getSelectedItem();
-            if (selectedMember == null) return;
+            UserEntity target = (currentUser.getRole() == Role.USER)
+                    ? currentUser
+                    : (UserEntity) memberCombo.getSelectedItem();
 
-            // Вызываем логику из сервиса, которую мы написали ранее
+            if (target == null) return;
+
             try {
-                // Пополняем до 8 (или 16 в версии 5.2)
-                String result = gymService.renewSubscription(selectedMember.getId(), 8);
+                // Вызываем сервис. Пользователь всегда пополняет на свой сохраненный maxVisits
+                int topUpAmount = target.getMaxVisits() > 0 ? target.getMaxVisits() : 8;
+                String result = gymService.renewSubscription(target.getId(), topUpAmount);
 
-                // Обновляем данные в ComboBox, чтобы увидеть изменения
-                refreshMembers(((GroupEntity) groupCombo.getSelectedItem()).getId());
+                // Обновляем данные объекта в памяти, чтобы интерфейс сразу изменился
+                target.setVisitsLeft(target.getVisitsLeft() + topUpAmount);
 
-                outputArea.setText(result);
+                if (currentUser.getRole() == Role.USER) {
+                    applySecurity(target); // Перерисовываем личный кабинет
+                } else {
+                    refreshMembers(((GroupEntity) groupCombo.getSelectedItem()).getId());
+                }
+
+                JOptionPane.showMessageDialog(this, result);
             } catch (Exception ex) {
-                outputArea.setText("ОШИБКА: " + ex.getMessage());
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка пополнения", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Ошибка: " + ex.getMessage());
             }
         });
 
         exportBtn.addActionListener(e -> exportGroupReport());
-        addGroupBtn.addActionListener(e -> showAddGroupDialog());
-        addMemberBtn.addActionListener(e -> showAddMemberDialog());
+        addGroupBtn.addActionListener(e -> {
+            new AddGroupDialog(this, gymService, this::refreshGroups).setVisible(true);
+        });
+        addMemberBtn.addActionListener(e -> {
+            new AssignMemberDialog(this, userRepository, groupRepository, () -> {
+                GroupEntity g = (GroupEntity) groupCombo.getSelectedItem();
+                if (g != null) refreshMembers(g.getId());
+            }).setVisible(true);
+        });
     }
 
     private void refreshGroups() {
@@ -187,72 +206,8 @@ public class MainFrame extends JFrame {
                 .forEach(memberCombo::addItem);
     }
 
-    private void showAddGroupDialog() {
-        String name = JOptionPane.showInputDialog(this, "Введите название новой группы:");
-        if (name != null && !name.isEmpty()) {
-            try {
-                gymService.addGroup(name);
-                refreshGroups();
-                outputArea.setText("Группа " + name + " добавлена.");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void showAddMemberDialog() {
-        JDialog dialog = new JDialog(this, "Назначить группу пользователю", true);
-        dialog.setLayout(new GridLayout(5, 2, 10, 10));
-
-        // 1. Список ВСЕХ пользователей с ролью USER
-        JComboBox<UserEntity> userSelector = new JComboBox<>();
-        userRepository.findAllByRole(Role.USER).forEach(userSelector::addItem);
-
-        // 2. Список групп
-        JComboBox<GroupEntity> dialogGroupCombo = new JComboBox<>();
-        groupRepository.findAll().forEach(dialogGroupCombo::addItem);
-
-        JButton confirmBtn = new JButton("Подтвердить выбор");
-        JButton cancelBtn = new JButton("Отменить");
-
-        dialog.add(new JLabel(" Выберите пользователя:"));
-        dialog.add(userSelector);
-        dialog.add(new JLabel(" Назначить группу:"));
-        dialog.add(dialogGroupCombo);
-        dialog.add(confirmBtn);
-        dialog.add(cancelBtn);
-
-        confirmBtn.addActionListener(e -> {
-            try {
-                UserEntity selectedUser = (UserEntity) userSelector.getSelectedItem();
-                GroupEntity selectedGroup = (GroupEntity) dialogGroupCombo.getSelectedItem();
-
-                if (selectedUser == null) throw new RuntimeException("Пользователь не выбран!");
-                if (selectedGroup == null) throw new RuntimeException("Группа не выбрана!");
-
-                // ОБНОВЛЯЕМ существующего пользователя
-                selectedUser.setGroup(selectedGroup);
-
-                userRepository.save(selectedUser); // Spring Data поймет, что это Update (так как ID уже есть)
-
-                // Обновляем UI главной панели
-                refreshMembers(selectedGroup.getId());
-
-                dialog.dispose();
-                outputArea.setText("Пользователь " + selectedUser.getUsername() + " привязан к группе " + selectedGroup.getName());
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-
-        cancelBtn.addActionListener(e -> dialog.dispose());
-
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
-    }
-
-    public void applySecurity(UserEntity currentUser) {
+    public void applySecurity(UserEntity user) {
+        this.currentUser = user;
         Role role = currentUser.getRole();
 
         if (role == Role.USER) {
@@ -264,13 +219,12 @@ public class MainFrame extends JFrame {
             memberCombo.setVisible(false);
             conductButton.setVisible(false);
             absentButton.setVisible(false);
-            renewButton.setVisible(false);
             addGroupBtn.setVisible(false);
             addMemberBtn.setVisible(false);
             exportBtn.setVisible(false);
 
-            // Также скроем подписи (JLabel), если они у тебя вынесены в переменные класса
-            // или просто очистим верхнюю панель
+            renewButton.setVisible(true);
+            renewButton.setText("Пополнить абонемент");
 
             // 2. Формируем текст для Личного кабинета
             String groupName = (currentUser.getGroup() != null)
@@ -297,7 +251,7 @@ public class MainFrame extends JFrame {
             // Администратор видит всё
             addGroupBtn.setEnabled(true);
             addMemberBtn.setEnabled(true);
-            renewButton.setEnabled(true);
+            renewButton.setVisible(false);
 
             outputArea.setText("Авторизован как: АДМИНИСТРАТОР\n" +
                     "Доступ: Полный контроль системы.");
@@ -306,29 +260,34 @@ public class MainFrame extends JFrame {
 
     private void exportGroupReport() {
         GroupEntity selectedGroup = (GroupEntity) groupCombo.getSelectedItem();
-        if (selectedGroup == null) return;
+        if (selectedGroup == null) {
+            JOptionPane.showMessageDialog(this, "Сначала выберите группу!");
+            return;
+        }
 
-        // Выбираем путь для сохранения через стандартный диалог Windows/Linux
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setSelectedFile(new java.io.File(selectedGroup.getName() + "_report.txt"));
+        fileChooser.setDialogTitle("Сохранить отчет");
+        fileChooser.setSelectedFile(new java.io.File(selectedGroup.getName() + "_отчет.txt"));
 
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            java.io.File file = fileChooser.getSelectedFile();
-
-            try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
-                writer.println("Отчет по группе: " + selectedGroup.getName());
-                writer.println("Дата генерации: " + java.time.LocalDate.now());
-                writer.println("------------------------------------------");
-
+            try {
+                // Собираем список участников из комбобокса в List
+                java.util.List<UserEntity> members = new java.util.ArrayList<>();
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
-                    UserEntity m = memberCombo.getItemAt(i);
-                    writer.printf("%-20s | Остаток занятий: %d%n", m.getUsername(), m.getVisitsLeft());
+                    members.add(memberCombo.getItemAt(i));
                 }
 
-                writer.println("------------------------------------------");
-                outputArea.setText("Отчет успешно сохранен: " + file.getAbsolutePath());
-            } catch (java.io.IOException ex) {
-                JOptionPane.showMessageDialog(this, "Ошибка при записи файла: " + ex.getMessage());
+                // Вызываем внешний сервис
+                exportService.exportToTextFile(
+                        fileChooser.getSelectedFile(),
+                        selectedGroup.getName(),
+                        members
+                );
+
+                outputArea.setText("Отчет успешно сохранен в: " + fileChooser.getSelectedFile().getName());
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Ошибка экспорта: " + ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

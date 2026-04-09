@@ -1,7 +1,8 @@
 package com.lomakova.gymflow.ui;
 
-import com.lomakova.gymflow.entity.Group;
-import com.lomakova.gymflow.entity.Member;
+import com.lomakova.gymflow.entity.GroupEntity;
+import com.lomakova.gymflow.entity.MemberEntity;
+import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.MemberRepository;
@@ -21,8 +22,8 @@ public class MainFrame extends JFrame {
     private final MemberRepository memberRepository;
     private final GymService gymService;
 
-    private JComboBox<Group> groupCombo;
-    private JComboBox<Member> memberCombo;
+    private JComboBox<GroupEntity> groupCombo;
+    private JComboBox<MemberEntity> memberCombo;
     private JCheckBox allPresentBox;
     private JTextArea outputArea;
     private JButton conductButton;
@@ -30,6 +31,7 @@ public class MainFrame extends JFrame {
     private JButton renewButton;
     private JButton addGroupBtn;
     private JButton addMemberBtn;
+    private JButton exportBtn;
 
     @PostConstruct
     public void init() {
@@ -72,6 +74,9 @@ public class MainFrame extends JFrame {
         buttonPanel.add(addGroupBtn);
         buttonPanel.add(addMemberBtn);
 
+        exportBtn = new JButton("Экспорт отчета");
+        buttonPanel.add(exportBtn);
+
         add(topPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
@@ -83,7 +88,7 @@ public class MainFrame extends JFrame {
     private void setupLogic() {
         // Логика переключения участников при выборе группы (Требование 5.2)
         groupCombo.addActionListener(e -> {
-            Group selected = (Group) groupCombo.getSelectedItem();
+            GroupEntity selected = (GroupEntity) groupCombo.getSelectedItem();
             if (selected != null) {
                 refreshMembers(selected.getId());
             }
@@ -91,7 +96,7 @@ public class MainFrame extends JFrame {
 
         // Логика отображения инфо об абонементе (Требование 5.1)
         memberCombo.addActionListener(e -> {
-            Member selected = (Member) memberCombo.getSelectedItem();
+            MemberEntity selected = (MemberEntity) memberCombo.getSelectedItem();
             if (selected != null) {
                 outputArea.setText("Участник: " + selected.getName() +
                         "\nОсталось занятий: " + selected.getVisitsLeft());
@@ -99,7 +104,7 @@ public class MainFrame extends JFrame {
         });
 
         conductButton.addActionListener(e -> {
-            Group selectedGroup = (Group) groupCombo.getSelectedItem();
+            GroupEntity selectedGroup = (GroupEntity) groupCombo.getSelectedItem();
             if (selectedGroup == null) {
                 outputArea.setText("Ошибка: Группа не выбрана!");
                 return;
@@ -109,7 +114,7 @@ public class MainFrame extends JFrame {
                 boolean allPresent = allPresentBox.isSelected();
 
                 // 1. Собираем всех участников из текущего комбобокса
-                java.util.List<Member> currentMembers = new java.util.ArrayList<>();
+                java.util.List<MemberEntity> currentMembers = new java.util.ArrayList<>();
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
                     currentMembers.add(memberCombo.getItemAt(i));
                 }
@@ -129,7 +134,7 @@ public class MainFrame extends JFrame {
         });
 
         absentButton.addActionListener(e -> {
-            Member selectedMember = (Member) memberCombo.getSelectedItem();
+            MemberEntity selectedMember = (MemberEntity) memberCombo.getSelectedItem();
             if (selectedMember == null) {
                 outputArea.setText("Ошибка: Сначала выберите участника!");
                 return;
@@ -146,7 +151,7 @@ public class MainFrame extends JFrame {
         });
 
         renewButton.addActionListener(e -> {
-            Member selectedMember = (Member) memberCombo.getSelectedItem();
+            MemberEntity selectedMember = (MemberEntity) memberCombo.getSelectedItem();
             if (selectedMember == null) return;
 
             // Вызываем логику из сервиса, которую мы написали ранее
@@ -155,7 +160,7 @@ public class MainFrame extends JFrame {
                 String result = gymService.renewSubscription(selectedMember.getId(), 8);
 
                 // Обновляем данные в ComboBox, чтобы увидеть изменения
-                refreshMembers(((Group) groupCombo.getSelectedItem()).getId());
+                refreshMembers(((GroupEntity) groupCombo.getSelectedItem()).getId());
 
                 outputArea.setText(result);
             } catch (Exception ex) {
@@ -164,6 +169,7 @@ public class MainFrame extends JFrame {
             }
         });
 
+        exportBtn.addActionListener(e -> exportGroupReport());
         addGroupBtn.addActionListener(e -> showAddGroupDialog());
         addMemberBtn.addActionListener(e -> showAddMemberDialog());
     }
@@ -196,7 +202,7 @@ public class MainFrame extends JFrame {
         dialog.setLayout(new GridLayout(5, 2, 10, 10));
 
         JTextField nameField = new JTextField();
-        JComboBox<Group> dialogGroupCombo = new JComboBox<>();
+        JComboBox<GroupEntity> dialogGroupCombo = new JComboBox<>();
         groupRepository.findAll().forEach(dialogGroupCombo::addItem);
 
         // Выбор абонемента через RadioButtons
@@ -224,7 +230,7 @@ public class MainFrame extends JFrame {
         confirmBtn.addActionListener(e -> {
             try {
                 String name = nameField.getText();
-                Group selectedGroup = (Group) dialogGroupCombo.getSelectedItem();
+                GroupEntity selectedGroup = (GroupEntity) dialogGroupCombo.getSelectedItem();
                 int visits = rb8.isSelected() ? 8 : 16;
 
                 if (selectedGroup == null) throw new RuntimeException("Выберите группу!");
@@ -247,22 +253,18 @@ public class MainFrame extends JFrame {
         dialog.setVisible(true);
     }
 
-    public void openForRole(Role role) {
-        if (role == Role.USER) {
-            // Скрываем или отключаем функции админа
-            addGroupBtn.setVisible(false);
-            addMemberBtn.setVisible(false);
-            renewButton.setEnabled(false); // Пользователь может видеть, но не может пополнять
-            outputArea.setText("Режим: ПОЛЬЗОВАТЕЛЬ (Только просмотр и проведение занятий)");
-        } else {
-            outputArea.setText("Режим: АДМИНИСТРАТОР (Полный доступ)");
-        }
-        this.setVisible(true);
-    }
+    public void applySecurity(UserEntity user) {
+        java.util.Properties props = new java.util.Properties();
+        String gymName = "GymFlow"; // Значение по умолчанию
+        try (java.io.FileInputStream in = new java.io.FileInputStream("settings.properties")) {
+            props.load(in);
+            gymName = props.getProperty("gym.name", "GymFlow");
+        } catch (java.io.IOException e) { /* игнорируем, останется GymFlow */ }
 
-    public void applySecurity(Role role) {
-        setTitle("GymFlow - Панель: " + role.name());
-        if (role == Role.USER) {
+        // 2. Устанавливаем комбинированный заголовок
+        setTitle(gymName + " - Панель: " + user.getUsername());
+
+        if (user.getRole() == Role.USER) {
             // Ограничиваем обычного пользователя
             addGroupBtn.setEnabled(false);    // Нельзя создавать группы
             addMemberBtn.setEnabled(false);   // Нельзя добавлять людей
@@ -281,6 +283,35 @@ public class MainFrame extends JFrame {
 
             outputArea.setText("Авторизован как: АДМИНИСТРАТОР\n" +
                     "Доступ: Полный контроль системы.");
+        }
+    }
+
+    private void exportGroupReport() {
+        GroupEntity selectedGroup = (GroupEntity) groupCombo.getSelectedItem();
+        if (selectedGroup == null) return;
+
+        // Выбираем путь для сохранения через стандартный диалог Windows/Linux
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setSelectedFile(new java.io.File(selectedGroup.getName() + "_report.txt"));
+
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            java.io.File file = fileChooser.getSelectedFile();
+
+            try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+                writer.println("Отчет по группе: " + selectedGroup.getName());
+                writer.println("Дата генерации: " + java.time.LocalDate.now());
+                writer.println("------------------------------------------");
+
+                for (int i = 0; i < memberCombo.getItemCount(); i++) {
+                    MemberEntity m = memberCombo.getItemAt(i);
+                    writer.printf("%-20s | Остаток занятий: %d%n", m.getName(), m.getVisitsLeft());
+                }
+
+                writer.println("------------------------------------------");
+                outputArea.setText("Отчет успешно сохранен: " + file.getAbsolutePath());
+            } catch (java.io.IOException ex) {
+                JOptionPane.showMessageDialog(this, "Ошибка при записи файла: " + ex.getMessage());
+            }
         }
     }
 }

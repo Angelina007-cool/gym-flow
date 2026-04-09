@@ -22,7 +22,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Member {
+public class MemberEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +34,7 @@ public class Member {
 
     @ManyToOne
     @JoinColumn(name = "group_id")
-    private Group group;
+    private GroupEntity group;
 
     @Column(name = "visits_left")
     private int visitsLeft;

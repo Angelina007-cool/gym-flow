@@ -13,6 +13,7 @@ public class LoginFrame extends JFrame {
 
     private final UserRepository userRepository;
     private final MainFrame mainFrame;
+    private final RegisterFrame registerFrame;
 
     public void init() {
         setTitle("GymFlow Login");
@@ -24,12 +25,13 @@ public class LoginFrame extends JFrame {
         JTextField userField = new JTextField();
         JPasswordField passField = new JPasswordField();
         JButton loginBtn = new JButton("Войти");
+        JButton goToRegisterBtn = new JButton("Регистрация");
 
         add(new JLabel("  Логин:"));
         add(userField);
         add(new JLabel("  Пароль:"));
         add(passField);
-        add(new JLabel(""));
+        add(goToRegisterBtn);
         add(loginBtn);
 
         loginBtn.addActionListener(e -> {
@@ -39,7 +41,7 @@ public class LoginFrame extends JFrame {
             userRepository.findByUsername(username).ifPresentOrElse(user -> {
                 if (user.getPassword().equals(password)) {
                     // Успешный вход
-                    mainFrame.applySecurity(user.getRole());
+                    mainFrame.applySecurity(user);
                     mainFrame.setVisible(true);
                     this.dispose(); // Закрываем окно логина
                 } else {
@@ -49,6 +51,8 @@ public class LoginFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Пользователь не найден!", "Ошибка", JOptionPane.ERROR_MESSAGE);
             });
         });
+
+        goToRegisterBtn.addActionListener(e -> registerFrame.init());
 
         setVisible(true);
     }

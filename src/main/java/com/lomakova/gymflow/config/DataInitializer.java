@@ -1,8 +1,8 @@
 package com.lomakova.gymflow.config;
 
-import com.lomakova.gymflow.entity.Group;
-import com.lomakova.gymflow.entity.Member;
-import com.lomakova.gymflow.entity.User;
+import com.lomakova.gymflow.entity.GroupEntity;
+import com.lomakova.gymflow.entity.MemberEntity;
+import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.MemberRepository;
@@ -29,10 +29,10 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println(">>> Наполнение базы тестовыми данными...");
 
             // 1. Создаем две группы (согласно условию 5.2)
-            Group groupA = Group.builder()
+            GroupEntity groupA = GroupEntity.builder()
                     .name("Йога Утро")
                     .build();
-            Group groupB = Group.builder()
+            GroupEntity groupB = GroupEntity.builder()
                     .name("Кроссфит Вечер")
                     .build();
 
@@ -42,7 +42,7 @@ public class DataInitializer implements CommandLineRunner {
             // У всех новые абонементы по 8 занятий
             String[] namesA = {"Иван", "Мария", "Алексей", "Елена", "Дмитрий", "Ольга"};
             for (String name : namesA) {
-                memberRepository.save(Member.builder()
+                memberRepository.save(MemberEntity.builder()
                         .name(name)
                         .group(groupA)
                         .visitsLeft(8)
@@ -52,7 +52,7 @@ public class DataInitializer implements CommandLineRunner {
 
             String[] namesB = {"Петр", "Анна", "Сергей", "Наталья", "Артем", "Светлана"};
             for (String name : namesB) {
-                memberRepository.save(Member.builder()
+                memberRepository.save(MemberEntity.builder()
                         .name(name)
                         .group(groupB)
                         .visitsLeft(8)
@@ -66,14 +66,14 @@ public class DataInitializer implements CommandLineRunner {
                 System.out.println(">>> Создание учетных записей...");
 
                 // Создаем администратора
-                userRepository.save(User.builder()
+                userRepository.save(UserEntity.builder()
                         .username("admin")
                         .password("1234") // В учебном проекте храним просто строкой
                         .role(Role.ADMIN)
                         .build());
 
                 // Создаем обычного пользователя (тренера)
-                userRepository.save(User.builder()
+                userRepository.save(UserEntity.builder()
                         .username("user")
                         .password("1111")
                         .role(Role.USER)

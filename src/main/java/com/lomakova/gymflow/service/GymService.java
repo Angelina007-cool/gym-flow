@@ -23,11 +23,15 @@ public class GymService {
         List<Member> members = memberRepository.findAllByGroup_Id(groupId);
 
         for (Member member : members) {
-            if (member.getVisitsLeft() <= 0 && (allPresent || !member.isExcursedAbsence())) {
-                System.out.println("Ошибка: у " + member.getName() + " пустой абонемент");
-                continue;
+            if (allPresent || !member.isExcusedAbsence()) {
+                if (member.getVisitsLeft() > 0) {
+                    member.setVisitsLeft(member.getVisitsLeft() - 1);
+                } else {
+                    throw new RuntimeException("У пользователя " + member.getName() + " закончился абонемент!");
+                }
             }
-            member.decrementVisit(allPresent);
+
+            member.setExcusedAbsence(false);
         }
         memberRepository.saveAll(members);
     }
@@ -55,5 +59,31 @@ public class GymService {
         return groupRepository.save(Group.builder()
                 .name(name)
                 .build());
+    }
+
+    public Group addGroup(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new RuntimeException("Имя группы не может быть пустым!");
+        }
+        return groupRepository.save(Group.builder().name(name).build());
+    }
+
+    @Transactional
+    public Member addMember(String name, Long groupId, int visits) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Группа не найдена"));
+
+        if (group.isFull()) {
+            throw new RuntimeException("Группа переполнена! Максимум 8 человек.");
+        }
+
+        Member member = Member.builder()
+                .name(name)
+                .group(group)
+                .visitsLeft(visits)
+                .maxVisits(visits)
+                .build();
+
+        return memberRepository.save(member);
     }
 }

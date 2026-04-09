@@ -43,15 +43,15 @@ public class Member {
     private int maxVisits;
 
     @Transient
-    private boolean excursedAbsence = false;
+    private boolean excusedAbsence = false;
 
     public void decrementVisit(boolean allPresent) {
-        if (allPresent || !excursedAbsence) {
+        if (allPresent || !excusedAbsence) {
             if (visitsLeft > 0) {
                 visitsLeft--;
             }
         }
-        this.excursedAbsence = false;
+        this.excusedAbsence = false;
     }
 
     @Override

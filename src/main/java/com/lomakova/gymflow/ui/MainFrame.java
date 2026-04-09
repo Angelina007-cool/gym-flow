@@ -27,6 +27,8 @@ public class MainFrame extends JFrame {
     private JButton conductButton;
     private JButton absentButton;
     private JButton renewButton;
+    private JButton addGroupBtn;
+    private JButton addMemberBtn;
 
     @PostConstruct
     public void init() {
@@ -59,9 +61,15 @@ public class MainFrame extends JFrame {
         absentButton = new JButton("Отсутствует");
         renewButton = new JButton("Пополнить абонемент");
 
+        addGroupBtn = new JButton("Добавить группу");
+        addMemberBtn = new JButton("Добавить посетителя");
+
         buttonPanel.add(conductButton);
         buttonPanel.add(absentButton);
         buttonPanel.add(renewButton);
+
+        buttonPanel.add(addGroupBtn);
+        buttonPanel.add(addMemberBtn);
 
         add(topPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
@@ -99,18 +107,21 @@ public class MainFrame extends JFrame {
             try {
                 boolean allPresent = allPresentBox.isSelected();
 
-                // Вызываем сервис
-                gymService.conductLesson(selectedGroup.getId(), allPresent);
+                // 1. Собираем всех участников из текущего комбобокса
+                java.util.List<Member> currentMembers = new java.util.ArrayList<>();
+                for (int i = 0; i < memberCombo.getItemCount(); i++) {
+                    currentMembers.add(memberCombo.getItemAt(i));
+                }
 
-                // Обновляем UI
+                // 2. Передаем список в сервис
+                gymService.conductLesson(currentMembers, allPresent);
+
+                // 3. Обновляем UI (теперь данные из базы подтянутся уже измененными)
                 refreshMembers(selectedGroup.getId());
                 outputArea.setText("Занятие успешно проведено для группы: " + selectedGroup.getName());
-
-                // Сбрасываем чек-бокс
                 allPresentBox.setSelected(false);
 
             } catch (RuntimeException ex) {
-                // Вывод ошибки в текстовое поле (согласно 5.1 и 5.2)
                 outputArea.setText("ОШИБКА: " + ex.getMessage());
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Внимание", JOptionPane.WARNING_MESSAGE);
             }
@@ -151,6 +162,9 @@ public class MainFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка пополнения", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        addGroupBtn.addActionListener(e -> showAddGroupDialog());
+        addMemberBtn.addActionListener(e -> showAddMemberDialog());
     }
 
     private void refreshGroups() {
@@ -174,5 +188,61 @@ public class MainFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    private void showAddMemberDialog() {
+        JDialog dialog = new JDialog(this, "Добавить посетителя", true);
+        dialog.setLayout(new GridLayout(5, 2, 10, 10));
+
+        JTextField nameField = new JTextField();
+        JComboBox<Group> dialogGroupCombo = new JComboBox<>();
+        groupRepository.findAll().forEach(dialogGroupCombo::addItem);
+
+        // Выбор абонемента через RadioButtons
+        JRadioButton rb8 = new JRadioButton("8 занятий", true);
+        JRadioButton rb16 = new JRadioButton("16 занятий");
+        ButtonGroup bg = new ButtonGroup();
+        bg.add(rb8);
+        bg.add(rb16);
+        JPanel radioPanel = new JPanel();
+        radioPanel.add(rb8);
+        radioPanel.add(rb16);
+
+        JButton confirmBtn = new JButton("Подтвердить");
+        JButton cancelBtn = new JButton("Отменить");
+
+        dialog.add(new JLabel(" Имя:"));
+        dialog.add(nameField);
+        dialog.add(new JLabel(" Группа:"));
+        dialog.add(dialogGroupCombo);
+        dialog.add(new JLabel(" Абонемент:"));
+        dialog.add(radioPanel);
+        dialog.add(confirmBtn);
+        dialog.add(cancelBtn);
+
+        confirmBtn.addActionListener(e -> {
+            try {
+                String name = nameField.getText();
+                Group selectedGroup = (Group) dialogGroupCombo.getSelectedItem();
+                int visits = rb8.isSelected() ? 8 : 16;
+
+                if (selectedGroup == null) throw new RuntimeException("Выберите группу!");
+
+                gymService.addMember(name, selectedGroup.getId(), visits);
+
+                // Обновляем списки на главном экране
+                refreshMembers(selectedGroup.getId());
+                dialog.dispose();
+                outputArea.setText("Посетитель " + name + " успешно добавлен.");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 }

@@ -19,20 +19,21 @@ public class GymService {
 
     // Проведение занятия для группы
     @Transactional
-    public void conductLesson(Long groupId, boolean allPresent) {
-        List<Member> members = memberRepository.findAllByGroup_Id(groupId);
+    public void conductLesson(List<Member> members, boolean allPresent) {
+        if (members == null || members.isEmpty()) {
+            throw new RuntimeException("В группе нет участников!");
+        }
 
         for (Member member : members) {
+            // Вызываем логику списания (ту самую с проверкой visitsLeft > 0)
             if (allPresent || !member.isExcusedAbsence()) {
-                if (member.getVisitsLeft() > 0) {
-                    member.setVisitsLeft(member.getVisitsLeft() - 1);
-                } else {
+                if (member.getVisitsLeft() <= 0) {
                     throw new RuntimeException("У пользователя " + member.getName() + " закончился абонемент!");
                 }
             }
-
-            member.setExcusedAbsence(false);
+            member.decrementVisit(allPresent);
         }
+        // Сохраняем измененные объекты обратно в базу
         memberRepository.saveAll(members);
     }
 

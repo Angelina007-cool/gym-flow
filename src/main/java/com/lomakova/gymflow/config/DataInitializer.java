@@ -2,8 +2,11 @@ package com.lomakova.gymflow.config;
 
 import com.lomakova.gymflow.entity.Group;
 import com.lomakova.gymflow.entity.Member;
+import com.lomakova.gymflow.entity.User;
+import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.MemberRepository;
+import com.lomakova.gymflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +19,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final GroupRepository groupRepository;
     private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -57,6 +61,26 @@ public class DataInitializer implements CommandLineRunner {
             }
 
             System.out.println(">>> Данные успешно загружены: 2 группы, 12 участников.");
+
+            if (userRepository.count() == 0) {
+                System.out.println(">>> Создание учетных записей...");
+
+                // Создаем администратора
+                userRepository.save(User.builder()
+                        .username("admin")
+                        .password("1234") // В учебном проекте храним просто строкой
+                        .role(Role.ADMIN)
+                        .build());
+
+                // Создаем обычного пользователя (тренера)
+                userRepository.save(User.builder()
+                        .username("user")
+                        .password("1111")
+                        .role(Role.USER)
+                        .build());
+
+                System.out.println(">>> Аккаунты созданы: admin/1234 и user/1111");
+            }
         }
     }
 }

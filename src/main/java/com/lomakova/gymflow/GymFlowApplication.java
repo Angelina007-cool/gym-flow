@@ -1,5 +1,6 @@
 package com.lomakova.gymflow;
 
+import com.lomakova.gymflow.ui.LoginFrame;
 import com.lomakova.gymflow.ui.MainFrame;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,8 +18,8 @@ public class GymFlowApplication {
                 .run(args);
 
         EventQueue.invokeLater(() -> {
-            MainFrame frame = context.getBean(MainFrame.class);
-            frame.setVisible(true);
+            LoginFrame loginFrame = context.getBean(LoginFrame.class);
+            loginFrame.init();
         });
     }
 

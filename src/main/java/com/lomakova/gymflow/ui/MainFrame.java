@@ -2,6 +2,7 @@ package com.lomakova.gymflow.ui;
 
 import com.lomakova.gymflow.entity.Group;
 import com.lomakova.gymflow.entity.Member;
+import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.MemberRepository;
 import com.lomakova.gymflow.service.GymService;
@@ -244,5 +245,42 @@ public class MainFrame extends JFrame {
         dialog.pack();
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
+    }
+
+    public void openForRole(Role role) {
+        if (role == Role.USER) {
+            // Скрываем или отключаем функции админа
+            addGroupBtn.setVisible(false);
+            addMemberBtn.setVisible(false);
+            renewButton.setEnabled(false); // Пользователь может видеть, но не может пополнять
+            outputArea.setText("Режим: ПОЛЬЗОВАТЕЛЬ (Только просмотр и проведение занятий)");
+        } else {
+            outputArea.setText("Режим: АДМИНИСТРАТОР (Полный доступ)");
+        }
+        this.setVisible(true);
+    }
+
+    public void applySecurity(Role role) {
+        setTitle("GymFlow - Панель: " + role.name());
+        if (role == Role.USER) {
+            // Ограничиваем обычного пользователя
+            addGroupBtn.setEnabled(false);    // Нельзя создавать группы
+            addMemberBtn.setEnabled(false);   // Нельзя добавлять людей
+            renewButton.setEnabled(false);    // Нельзя пополнять абонементы
+
+            // Опционально: можно вообще скрыть их
+            // addGroupBtn.setVisible(false);
+
+            outputArea.setText("Авторизован как: ПОЛЬЗОВАТЕЛЬ\n" +
+                    "Доступ: Проведение занятий и отметки отсутствующих.");
+        } else {
+            // Администратор видит всё
+            addGroupBtn.setEnabled(true);
+            addMemberBtn.setEnabled(true);
+            renewButton.setEnabled(true);
+
+            outputArea.setText("Авторизован как: АДМИНИСТРАТОР\n" +
+                    "Доступ: Полный контроль системы.");
+        }
     }
 }

@@ -8,6 +8,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,4 +40,31 @@ public class UserEntity {
     @Column(name = "role")
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @Column(name = "visits_left")
+    private int visitsLeft;
+
+    @Column(name = "max_visits")
+    private int maxVisits;
+
+    @Column(name = "excusedAbsence")
+    private boolean excusedAbsence;
+
+    @ManyToOne
+    @JoinColumn(name = "group_id")
+    private GroupEntity group;
+
+    public void decrementVisit(boolean allPresent) {
+        if (allPresent || !excusedAbsence) {
+            if (visitsLeft > 0) {
+                visitsLeft--;
+            }
+        }
+        this.excusedAbsence = false;
+    }
+
+    @Override
+    public String toString() {
+        return username + " (ID: " + id + ")";
+    }
 }

@@ -36,7 +36,7 @@ public class GroupEntity {
     private String name;
 
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private List<MemberEntity> members = new ArrayList<>();
+    private List<UserEntity> members = new ArrayList<>();
 
     public boolean isFull() {
         return members.size() >= 8;

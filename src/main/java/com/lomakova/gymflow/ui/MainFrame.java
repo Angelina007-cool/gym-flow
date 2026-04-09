@@ -1,11 +1,10 @@
 package com.lomakova.gymflow.ui;
 
 import com.lomakova.gymflow.entity.GroupEntity;
-import com.lomakova.gymflow.entity.MemberEntity;
 import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;
-import com.lomakova.gymflow.repository.MemberRepository;
+import com.lomakova.gymflow.repository.UserRepository;
 import com.lomakova.gymflow.service.GymService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +18,11 @@ import java.awt.*;
 public class MainFrame extends JFrame {
 
     private final GroupRepository groupRepository;
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
     private final GymService gymService;
 
     private JComboBox<GroupEntity> groupCombo;
-    private JComboBox<MemberEntity> memberCombo;
+    private JComboBox<UserEntity> memberCombo;
     private JCheckBox allPresentBox;
     private JTextArea outputArea;
     private JButton conductButton;
@@ -33,6 +32,8 @@ public class MainFrame extends JFrame {
     private JButton addMemberBtn;
     private JButton exportBtn;
 
+    private JPanel topPanel;
+
     @PostConstruct
     public void init() {
         setTitle("GymFlow - Система контроля абонементов");
@@ -41,7 +42,7 @@ public class MainFrame extends JFrame {
         setLayout(new BorderLayout(10, 10));
 
         // Панель управления (Верхняя часть)
-        JPanel topPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+        topPanel = new JPanel(new GridLayout(3, 2, 5, 5));
 
         groupCombo = new JComboBox<>();
         memberCombo = new JComboBox<>();
@@ -96,9 +97,9 @@ public class MainFrame extends JFrame {
 
         // Логика отображения инфо об абонементе (Требование 5.1)
         memberCombo.addActionListener(e -> {
-            MemberEntity selected = (MemberEntity) memberCombo.getSelectedItem();
+            UserEntity selected = (UserEntity) memberCombo.getSelectedItem();
             if (selected != null) {
-                outputArea.setText("Участник: " + selected.getName() +
+                outputArea.setText("Участник: " + selected.getUsername() +
                         "\nОсталось занятий: " + selected.getVisitsLeft());
             }
         });
@@ -114,7 +115,7 @@ public class MainFrame extends JFrame {
                 boolean allPresent = allPresentBox.isSelected();
 
                 // 1. Собираем всех участников из текущего комбобокса
-                java.util.List<MemberEntity> currentMembers = new java.util.ArrayList<>();
+                java.util.List<UserEntity> currentMembers = new java.util.ArrayList<>();
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
                     currentMembers.add(memberCombo.getItemAt(i));
                 }
@@ -134,7 +135,7 @@ public class MainFrame extends JFrame {
         });
 
         absentButton.addActionListener(e -> {
-            MemberEntity selectedMember = (MemberEntity) memberCombo.getSelectedItem();
+            UserEntity selectedMember = (UserEntity) memberCombo.getSelectedItem();
             if (selectedMember == null) {
                 outputArea.setText("Ошибка: Сначала выберите участника!");
                 return;
@@ -146,12 +147,12 @@ public class MainFrame extends JFrame {
 
             selectedMember.setExcusedAbsence(isExcused);
 
-            outputArea.setText("Участник " + selectedMember.getName() + " отмечен как отсутствующий.\n" +
+            outputArea.setText("Участник " + selectedMember.getUsername() + " отмечен как отсутствующий.\n" +
                     (isExcused ? "Причина: Уважительная" : "Причина: Неуважительная"));
         });
 
         renewButton.addActionListener(e -> {
-            MemberEntity selectedMember = (MemberEntity) memberCombo.getSelectedItem();
+            UserEntity selectedMember = (UserEntity) memberCombo.getSelectedItem();
             if (selectedMember == null) return;
 
             // Вызываем логику из сервиса, которую мы написали ранее
@@ -181,7 +182,9 @@ public class MainFrame extends JFrame {
 
     private void refreshMembers(Long groupId) {
         memberCombo.removeAllItems();
-        memberRepository.findAllByGroup_Id(groupId).forEach(memberCombo::addItem);
+        // Ищем всех UserEntity, у которых роль USER и ID группы совпадает
+        userRepository.findAllByRoleAndGroup_Id(Role.USER, groupId)
+                .forEach(memberCombo::addItem);
     }
 
     private void showAddGroupDialog() {
@@ -198,49 +201,45 @@ public class MainFrame extends JFrame {
     }
 
     private void showAddMemberDialog() {
-        JDialog dialog = new JDialog(this, "Добавить посетителя", true);
+        JDialog dialog = new JDialog(this, "Назначить группу пользователю", true);
         dialog.setLayout(new GridLayout(5, 2, 10, 10));
 
-        JTextField nameField = new JTextField();
+        // 1. Список ВСЕХ пользователей с ролью USER
+        JComboBox<UserEntity> userSelector = new JComboBox<>();
+        userRepository.findAllByRole(Role.USER).forEach(userSelector::addItem);
+
+        // 2. Список групп
         JComboBox<GroupEntity> dialogGroupCombo = new JComboBox<>();
         groupRepository.findAll().forEach(dialogGroupCombo::addItem);
 
-        // Выбор абонемента через RadioButtons
-        JRadioButton rb8 = new JRadioButton("8 занятий", true);
-        JRadioButton rb16 = new JRadioButton("16 занятий");
-        ButtonGroup bg = new ButtonGroup();
-        bg.add(rb8);
-        bg.add(rb16);
-        JPanel radioPanel = new JPanel();
-        radioPanel.add(rb8);
-        radioPanel.add(rb16);
-
-        JButton confirmBtn = new JButton("Подтвердить");
+        JButton confirmBtn = new JButton("Подтвердить выбор");
         JButton cancelBtn = new JButton("Отменить");
 
-        dialog.add(new JLabel(" Имя:"));
-        dialog.add(nameField);
-        dialog.add(new JLabel(" Группа:"));
+        dialog.add(new JLabel(" Выберите пользователя:"));
+        dialog.add(userSelector);
+        dialog.add(new JLabel(" Назначить группу:"));
         dialog.add(dialogGroupCombo);
-        dialog.add(new JLabel(" Абонемент:"));
-        dialog.add(radioPanel);
         dialog.add(confirmBtn);
         dialog.add(cancelBtn);
 
         confirmBtn.addActionListener(e -> {
             try {
-                String name = nameField.getText();
+                UserEntity selectedUser = (UserEntity) userSelector.getSelectedItem();
                 GroupEntity selectedGroup = (GroupEntity) dialogGroupCombo.getSelectedItem();
-                int visits = rb8.isSelected() ? 8 : 16;
 
-                if (selectedGroup == null) throw new RuntimeException("Выберите группу!");
+                if (selectedUser == null) throw new RuntimeException("Пользователь не выбран!");
+                if (selectedGroup == null) throw new RuntimeException("Группа не выбрана!");
 
-                gymService.addMember(name, selectedGroup.getId(), visits);
+                // ОБНОВЛЯЕМ существующего пользователя
+                selectedUser.setGroup(selectedGroup);
 
-                // Обновляем списки на главном экране
+                userRepository.save(selectedUser); // Spring Data поймет, что это Update (так как ID уже есть)
+
+                // Обновляем UI главной панели
                 refreshMembers(selectedGroup.getId());
+
                 dialog.dispose();
-                outputArea.setText("Посетитель " + name + " успешно добавлен.");
+                outputArea.setText("Пользователь " + selectedUser.getUsername() + " привязан к группе " + selectedGroup.getName());
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
             }
@@ -253,28 +252,47 @@ public class MainFrame extends JFrame {
         dialog.setVisible(true);
     }
 
-    public void applySecurity(UserEntity user) {
-        java.util.Properties props = new java.util.Properties();
-        String gymName = "GymFlow"; // Значение по умолчанию
-        try (java.io.FileInputStream in = new java.io.FileInputStream("settings.properties")) {
-            props.load(in);
-            gymName = props.getProperty("gym.name", "GymFlow");
-        } catch (java.io.IOException e) { /* игнорируем, останется GymFlow */ }
+    public void applySecurity(UserEntity currentUser) {
+        Role role = currentUser.getRole();
 
-        // 2. Устанавливаем комбинированный заголовок
-        setTitle(gymName + " - Панель: " + user.getUsername());
+        if (role == Role.USER) {
+            topPanel.setVisible(false);
 
-        if (user.getRole() == Role.USER) {
-            // Ограничиваем обычного пользователя
-            addGroupBtn.setEnabled(false);    // Нельзя создавать группы
-            addMemberBtn.setEnabled(false);   // Нельзя добавлять людей
-            renewButton.setEnabled(false);    // Нельзя пополнять абонементы
+            // 1. Скрываем все панели управления (кнопки, списки, выбор групп)
+            // Предполагаем, что они лежат на панели controlPanel или просто скрываем по одной
+            groupCombo.setVisible(false);
+            memberCombo.setVisible(false);
+            conductButton.setVisible(false);
+            absentButton.setVisible(false);
+            renewButton.setVisible(false);
+            addGroupBtn.setVisible(false);
+            addMemberBtn.setVisible(false);
+            exportBtn.setVisible(false);
 
-            // Опционально: можно вообще скрыть их
-            // addGroupBtn.setVisible(false);
+            // Также скроем подписи (JLabel), если они у тебя вынесены в переменные класса
+            // или просто очистим верхнюю панель
 
-            outputArea.setText("Авторизован как: ПОЛЬЗОВАТЕЛЬ\n" +
-                    "Доступ: Проведение занятий и отметки отсутствующих.");
+            // 2. Формируем текст для Личного кабинета
+            String groupName = (currentUser.getGroup() != null)
+                    ? currentUser.getGroup().getName()
+                    : "Группа не назначена (обратитесь к админу)";
+
+            // Допустим, стандартный абонемент всегда из 8 или 16,
+            // но для простоты напишем просто остаток
+            StringBuilder profileInfo = new StringBuilder();
+            profileInfo.append("  ЛИЧНЫЙ КАБИНЕТ АТЛЕТА\n");
+            profileInfo.append("  ------------------------------------------\n");
+            profileInfo.append("  Имя: ").append(currentUser.getUsername()).append("\n");
+            profileInfo.append("  Группа: ").append(groupName).append("\n");
+            profileInfo.append("  Доступно занятий: ").append(currentUser.getVisitsLeft()).append("/").append(currentUser.getMaxVisits()).append("\n");
+            profileInfo.append("  ------------------------------------------\n");
+            profileInfo.append("  Статус: ").append(currentUser.getVisitsLeft() > 0 ? "Активен" : "Нужно пополнить");
+
+            outputArea.setFont(new Font("Monospaced", Font.BOLD, 14));
+            outputArea.setText(profileInfo.toString());
+            outputArea.setEditable(false); // Чтобы пользователь не мог сам себе дописать занятия :)
+
+            setTitle("GymFlow - Личный кабинет: " + currentUser.getUsername());
         } else {
             // Администратор видит всё
             addGroupBtn.setEnabled(true);
@@ -303,8 +321,8 @@ public class MainFrame extends JFrame {
                 writer.println("------------------------------------------");
 
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
-                    MemberEntity m = memberCombo.getItemAt(i);
-                    writer.printf("%-20s | Остаток занятий: %d%n", m.getName(), m.getVisitsLeft());
+                    UserEntity m = memberCombo.getItemAt(i);
+                    writer.printf("%-20s | Остаток занятий: %d%n", m.getUsername(), m.getVisitsLeft());
                 }
 
                 writer.println("------------------------------------------");

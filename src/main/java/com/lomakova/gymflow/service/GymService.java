@@ -1,9 +1,9 @@
 package com.lomakova.gymflow.service;
 
 import com.lomakova.gymflow.entity.GroupEntity;
-import com.lomakova.gymflow.entity.MemberEntity;
+import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.repository.GroupRepository;
-import com.lomakova.gymflow.repository.MemberRepository;
+import com.lomakova.gymflow.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,40 +15,40 @@ import java.util.List;
 public class GymService {
 
     private final GroupRepository groupRepository;
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
 
     // Проведение занятия для группы
     @Transactional
-    public void conductLesson(List<MemberEntity> members, boolean allPresent) {
+    public void conductLesson(List<UserEntity> members, boolean allPresent) {
         if (members == null || members.isEmpty()) {
             throw new RuntimeException("В группе нет участников!");
         }
 
-        for (MemberEntity member : members) {
+        for (UserEntity member : members) {
             // Вызываем логику списания (ту самую с проверкой visitsLeft > 0)
             if (allPresent || !member.isExcusedAbsence()) {
                 if (member.getVisitsLeft() <= 0) {
-                    throw new RuntimeException("У пользователя " + member.getName() + " закончился абонемент!");
+                    throw new RuntimeException("У пользователя " + member.getUsername() + " закончился абонемент!");
                 }
             }
             member.decrementVisit(allPresent);
         }
         // Сохраняем измененные объекты обратно в базу
-        memberRepository.saveAll(members);
+        userRepository.saveAll(members);
     }
 
     // Пополнение абонемента
     public String renewSubscription(Long memberId, int newType) {
-        MemberEntity member = memberRepository.findById(memberId)
+        UserEntity user = userRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Посетитель не найден"));
 
-        if (member.getVisitsLeft() >= 3) {
+        if (user.getVisitsLeft() >= 3) {
             return "Ошибка: Пополнение невозможно, осталось более 2 занятий!";
         }
 
-        member.setVisitsLeft(newType);
-        member.setMaxVisits(newType);
-        memberRepository.save(member);
+        user.setVisitsLeft(newType);
+        user.setMaxVisits(newType);
+        userRepository.save(user);
         return "Абонемент успешно обновлен до " + newType + " занятий.";
     }
 
@@ -70,7 +70,7 @@ public class GymService {
     }
 
     @Transactional
-    public MemberEntity addMember(String name, Long groupId, int visits) {
+    public UserEntity addMember(String name, Long groupId, int visits) {
         GroupEntity group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Группа не найдена"));
 
@@ -78,13 +78,13 @@ public class GymService {
             throw new RuntimeException("Группа переполнена! Максимум 8 человек.");
         }
 
-        MemberEntity member = MemberEntity.builder()
-                .name(name)
+        UserEntity user = UserEntity.builder()
+                .username(name)
                 .group(group)
                 .visitsLeft(visits)
                 .maxVisits(visits)
                 .build();
 
-        return memberRepository.save(member);
+        return userRepository.save(user);
     }
 }

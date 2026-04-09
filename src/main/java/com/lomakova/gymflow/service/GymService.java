@@ -1,13 +1,16 @@
 package com.lomakova.gymflow.service;
 
+import com.lomakova.gymflow.entity.AttendanceLog;
 import com.lomakova.gymflow.entity.GroupEntity;
 import com.lomakova.gymflow.entity.UserEntity;
+import com.lomakova.gymflow.repository.AttendanceLogRepository;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -15,26 +18,47 @@ import java.util.List;
 public class GymService {
 
     private final GroupRepository groupRepository;
+    private final AttendanceLogRepository logRepository;
     private final UserRepository userRepository;
 
     // Проведение занятия для группы
     @Transactional
     public void conductLesson(List<UserEntity> members, boolean allPresent) {
-        if (members == null || members.isEmpty()) {
-            throw new RuntimeException("В группе нет участников!");
-        }
-
         for (UserEntity member : members) {
-            // Вызываем логику списания (ту самую с проверкой visitsLeft > 0)
-            if (allPresent || !member.isExcusedAbsence()) {
-                if (member.getVisitsLeft() <= 0) {
-                    throw new RuntimeException("У пользователя " + member.getUsername() + " закончился абонемент!");
-                }
+            // Определяем: нужно ли списывать занятие?
+            // Списываем если:
+            // 1. Пришли все
+            // 2. Или если этот конкретный человек не имеет уважительной причины (прогул)
+            boolean shouldDecrement = allPresent || !member.isExcusedAbsence();
+
+            if (shouldDecrement) {
+                member.setVisitsLeft(Math.max(0, member.getVisitsLeft() - 1));
             }
-            member.decrementVisit(allPresent);
+
+            // Формируем статус для лога
+            String status;
+            if (allPresent) {
+                status = "ПОСЕЩЕНИЕ";
+            } else if (member.isExcusedAbsence()) {
+                status = "БОЛЕЗНЬ";
+            } else {
+                status = "ПРОГУЛ";
+            }
+
+            AttendanceLog log = AttendanceLog.builder()
+                    .username(member.getUsername())
+                    .groupName(member.getGroup().getName())
+                    .date(LocalDateTime.now())
+                    .visitsAfter(member.getVisitsLeft())
+                    .status(status)
+                    .build();
+
+            logRepository.save(log);
+
+            // Сбрасываем флаг для следующего занятия
+            member.setExcusedAbsence(false);
+            userRepository.save(member);
         }
-        // Сохраняем измененные объекты обратно в базу
-        userRepository.saveAll(members);
     }
 
     // Пополнение абонемента

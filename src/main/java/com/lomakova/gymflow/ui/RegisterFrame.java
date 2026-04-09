@@ -1,6 +1,5 @@
 package com.lomakova.gymflow.ui;
 
-import com.lomakova.gymflow.entity.GroupEntity;
 import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
 import com.lomakova.gymflow.repository.GroupRepository;

@@ -3,6 +3,7 @@ package com.lomakova.gymflow.ui;
 import com.lomakova.gymflow.entity.GroupEntity;
 import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
+import com.lomakova.gymflow.repository.AttendanceLogRepository;
 import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.UserRepository;
 import com.lomakova.gymflow.service.ExportService;
@@ -22,6 +23,7 @@ public class MainFrame extends JFrame {
     private final UserRepository userRepository;
     private final GymService gymService;
     private final ExportService exportService;
+    private final AttendanceLogRepository attendanceLogRepository;
 
     private UserEntity currentUser;
 
@@ -35,6 +37,7 @@ public class MainFrame extends JFrame {
     private JButton addGroupBtn;
     private JButton addMemberBtn;
     private JButton exportBtn;
+    private JButton statBtn;
 
     private JPanel topPanel;
 
@@ -72,6 +75,9 @@ public class MainFrame extends JFrame {
         addGroupBtn = new JButton("Добавить группу");
         addMemberBtn = new JButton("Добавить посетителя");
 
+        exportBtn = new JButton("Экспорт отчета");
+        statBtn = new JButton("Cтатистика");
+
         buttonPanel.add(conductButton);
         buttonPanel.add(absentButton);
         buttonPanel.add(renewButton);
@@ -79,8 +85,8 @@ public class MainFrame extends JFrame {
         buttonPanel.add(addGroupBtn);
         buttonPanel.add(addMemberBtn);
 
-        exportBtn = new JButton("Экспорт отчета");
         buttonPanel.add(exportBtn);
+        buttonPanel.add(statBtn);
 
         add(topPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
@@ -183,6 +189,9 @@ public class MainFrame extends JFrame {
         });
 
         exportBtn.addActionListener(e -> exportGroupReport());
+        statBtn.addActionListener(e -> {
+            new StatisticsDialog(this, attendanceLogRepository).setVisible(true);
+        });
         addGroupBtn.addActionListener(e -> {
             new AddGroupDialog(this, gymService, this::refreshGroups).setVisible(true);
         });

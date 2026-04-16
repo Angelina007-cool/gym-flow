@@ -13,7 +13,6 @@ public class StatisticsDialog extends JDialog {
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
 
-        // Заголовки таблицы
         String[] columns = {"Дата и время", "Атлет", "Группа", "Действие", "Остаток"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
@@ -22,7 +21,6 @@ public class StatisticsDialog extends JDialog {
             }
         };
 
-        // Заполнение данными из репозитория
         repository.findAllByOrderByDateDesc().forEach(log -> {
             model.addRow(new Object[]{
                     log.getDate().toString().replace("T", " ").substring(0, 16),
@@ -34,13 +32,11 @@ public class StatisticsDialog extends JDialog {
         });
 
         JTable table = new JTable(model);
-        // Немного настроим ширину колонок для красоты
         table.getColumnModel().getColumn(0).setPreferredWidth(120);
         table.getColumnModel().getColumn(3).setPreferredWidth(150);
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
-        // Кнопка закрытия снизу
         JButton closeBtn = new JButton("Закрыть");
         closeBtn.addActionListener(e -> dispose());
         JPanel southPanel = new JPanel();

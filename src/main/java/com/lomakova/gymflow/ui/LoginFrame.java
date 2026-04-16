@@ -40,7 +40,6 @@ public class LoginFrame extends JFrame {
 
             userRepository.findByUsername(username).ifPresentOrElse(user -> {
                 if (user.getPassword().equals(password)) {
-                    // Успешный вход
                     mainFrame.applySecurity(user);
                     mainFrame.setVisible(true);
                     this.dispose(); // Закрываем окно логина

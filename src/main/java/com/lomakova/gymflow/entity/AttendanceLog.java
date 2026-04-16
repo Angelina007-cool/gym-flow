@@ -29,16 +29,16 @@ public class AttendanceLog {
     private Long id;
 
     @Column(name = "username")
-    private String username;    // Имя атлета
+    private String username;
 
     @Column(name = "group_name")
-    private String groupName;   // Группа
+    private String groupName;
 
     @Column(name = "date")
-    private LocalDateTime date; // Дата и время занятия
+    private LocalDateTime date;
 
     @Column(name = "visits_after")
-    private int visitsAfter;    // Сколько осталось ПОСЛЕ занятия
+    private int visitsAfter;
 
     @Column(name = "status")
     private String status;

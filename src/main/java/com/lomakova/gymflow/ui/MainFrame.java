@@ -48,7 +48,6 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        // Панель управления (Верхняя часть)
         topPanel = new JPanel(new GridLayout(3, 2, 5, 5));
 
         groupCombo = new JComboBox<>();
@@ -61,12 +60,10 @@ public class MainFrame extends JFrame {
         topPanel.add(memberCombo);
         topPanel.add(allPresentBox);
 
-        // Поле вывода (Центр)
         outputArea = new JTextArea();
         outputArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(outputArea);
 
-        // Панель кнопок (Низ)
         JPanel buttonPanel = new JPanel();
         conductButton = new JButton("Провести занятие");
         absentButton = new JButton("Отсутствует");
@@ -97,7 +94,6 @@ public class MainFrame extends JFrame {
     }
 
     private void setupLogic() {
-        // Логика переключения участников при выборе группы (Требование 5.2)
         groupCombo.addActionListener(e -> {
             GroupEntity selected = (GroupEntity) groupCombo.getSelectedItem();
             if (selected != null) {
@@ -105,7 +101,6 @@ public class MainFrame extends JFrame {
             }
         });
 
-        // Логика отображения инфо об абонементе (Требование 5.1)
         memberCombo.addActionListener(e -> {
             UserEntity selected = (UserEntity) memberCombo.getSelectedItem();
             if (selected != null) {
@@ -124,16 +119,13 @@ public class MainFrame extends JFrame {
             try {
                 boolean allPresent = allPresentBox.isSelected();
 
-                // 1. Собираем всех участников из текущего комбобокса
                 java.util.List<UserEntity> currentMembers = new java.util.ArrayList<>();
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
                     currentMembers.add(memberCombo.getItemAt(i));
                 }
 
-                // 2. Передаем список в сервис
                 gymService.conductLesson(currentMembers, allPresent);
 
-                // 3. Обновляем UI (теперь данные из базы подтянутся уже измененными)
                 refreshMembers(selectedGroup.getId());
                 outputArea.setText("Занятие успешно проведено для группы: " + selectedGroup.getName());
                 allPresentBox.setSelected(false);
@@ -151,9 +143,7 @@ public class MainFrame extends JFrame {
                 return;
             }
 
-            // В версии 5.3 тут будет диалоговое окно, а пока используем чекбокс на главном экране
-            // Допустим, мы добавили чекбокс 'excusedCheckBox' для пометки уважительной причины
-            boolean isExcused = true; // Для 5.2/5.3 по умолчанию считаем, что нажатие кнопки - это отсутствие
+            boolean isExcused = true;
 
             selectedMember.setExcusedAbsence(isExcused);
 
@@ -169,15 +159,16 @@ public class MainFrame extends JFrame {
             if (target == null) return;
 
             try {
-                // Вызываем сервис. Пользователь всегда пополняет на свой сохраненный maxVisits
                 int topUpAmount = target.getMaxVisits() > 0 ? target.getMaxVisits() : 8;
                 String result = gymService.renewSubscription(target.getId(), topUpAmount);
 
-                // Обновляем данные объекта в памяти, чтобы интерфейс сразу изменился
-                target.setVisitsLeft(target.getVisitsLeft() + topUpAmount);
+                //target.setVisitsLeft(target.getVisitsLeft() + topUpAmount);
+                UserEntity updated = userRepository.findById(target.getId())
+                        .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
                 if (currentUser.getRole() == Role.USER) {
-                    applySecurity(target); // Перерисовываем личный кабинет
+                    this.currentUser = updated;
+                    applySecurity(this.currentUser);
                 } else {
                     refreshMembers(((GroupEntity) groupCombo.getSelectedItem()).getId());
                 }
@@ -210,7 +201,6 @@ public class MainFrame extends JFrame {
 
     private void refreshMembers(Long groupId) {
         memberCombo.removeAllItems();
-        // Ищем всех UserEntity, у которых роль USER и ID группы совпадает
         userRepository.findAllByRoleAndGroup_Id(Role.USER, groupId)
                 .forEach(memberCombo::addItem);
     }
@@ -222,8 +212,6 @@ public class MainFrame extends JFrame {
         if (role == Role.USER) {
             topPanel.setVisible(false);
 
-            // 1. Скрываем все панели управления (кнопки, списки, выбор групп)
-            // Предполагаем, что они лежат на панели controlPanel или просто скрываем по одной
             groupCombo.setVisible(false);
             memberCombo.setVisible(false);
             conductButton.setVisible(false);
@@ -231,17 +219,15 @@ public class MainFrame extends JFrame {
             addGroupBtn.setVisible(false);
             addMemberBtn.setVisible(false);
             exportBtn.setVisible(false);
+            statBtn.setVisible(false);
 
             renewButton.setVisible(true);
             renewButton.setText("Пополнить абонемент");
 
-            // 2. Формируем текст для Личного кабинета
             String groupName = (currentUser.getGroup() != null)
                     ? currentUser.getGroup().getName()
                     : "Группа не назначена (обратитесь к админу)";
 
-            // Допустим, стандартный абонемент всегда из 8 или 16,
-            // но для простоты напишем просто остаток
             StringBuilder profileInfo = new StringBuilder();
             profileInfo.append("  ЛИЧНЫЙ КАБИНЕТ АТЛЕТА\n");
             profileInfo.append("  ------------------------------------------\n");
@@ -253,11 +239,10 @@ public class MainFrame extends JFrame {
 
             outputArea.setFont(new Font("Monospaced", Font.BOLD, 14));
             outputArea.setText(profileInfo.toString());
-            outputArea.setEditable(false); // Чтобы пользователь не мог сам себе дописать занятия :)
+            outputArea.setEditable(false);
 
             setTitle("GymFlow - Личный кабинет: " + currentUser.getUsername());
         } else {
-            // Администратор видит всё
             addGroupBtn.setEnabled(true);
             addMemberBtn.setEnabled(true);
             renewButton.setVisible(false);
@@ -280,13 +265,11 @@ public class MainFrame extends JFrame {
 
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
-                // Собираем список участников из комбобокса в List
                 java.util.List<UserEntity> members = new java.util.ArrayList<>();
                 for (int i = 0; i < memberCombo.getItemCount(); i++) {
                     members.add(memberCombo.getItemAt(i));
                 }
 
-                // Вызываем внешний сервис
                 exportService.exportToTextFile(
                         fileChooser.getSelectedFile(),
                         selectedGroup.getName(),

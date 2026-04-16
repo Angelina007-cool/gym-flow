@@ -21,21 +21,20 @@ public class GymService {
     private final AttendanceLogRepository logRepository;
     private final UserRepository userRepository;
 
-    // Проведение занятия для группы
     @Transactional
     public void conductLesson(List<UserEntity> members, boolean allPresent) {
         for (UserEntity member : members) {
-            // Определяем: нужно ли списывать занятие?
-            // Списываем если:
-            // 1. Пришли все
-            // 2. Или если этот конкретный человек не имеет уважительной причины (прогул)
+
+            if (member.getVisitsLeft() <= 0) {
+                continue;
+            }
+
             boolean shouldDecrement = allPresent || !member.isExcusedAbsence();
 
             if (shouldDecrement) {
                 member.setVisitsLeft(Math.max(0, member.getVisitsLeft() - 1));
             }
 
-            // Формируем статус для лога
             String status;
             if (allPresent) {
                 status = "ПОСЕЩЕНИЕ";
@@ -55,60 +54,46 @@ public class GymService {
 
             logRepository.save(log);
 
-            // Сбрасываем флаг для следующего занятия
             member.setExcusedAbsence(false);
             userRepository.save(member);
         }
     }
 
-    // Пополнение абонемента
     public String renewSubscription(Long memberId, int newType) {
         UserEntity user = userRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Посетитель не найден"));
 
         if (user.getVisitsLeft() >= 3) {
-            return "Ошибка: Пополнение невозможно, осталось более 2 занятий!";
+            return "Ошибка: У вас еще достаточно занятий (" + user.getVisitsLeft() + ")";
         }
 
         user.setVisitsLeft(newType);
         user.setMaxVisits(newType);
+
+        user.setExcusedAbsence(false);
+
         userRepository.save(user);
+
         return "Абонемент успешно обновлен до " + newType + " занятий.";
     }
 
-    // Создание новой группы (проверка на уникальность имени)
-    public GroupEntity createGroup(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new RuntimeException("Имя группы пустое");
-        }
-        return groupRepository.save(GroupEntity.builder()
-                .name(name)
-                .build());
-    }
-
-    public GroupEntity addGroup(String name) {
+    public String addGroup(String name) {
         if (name == null || name.trim().isEmpty()) {
             throw new RuntimeException("Имя группы не может быть пустым!");
         }
-        return groupRepository.save(GroupEntity.builder().name(name).build());
-    }
 
-    @Transactional
-    public UserEntity addMember(String name, Long groupId, int visits) {
-        GroupEntity group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Группа не найдена"));
+        String trimmedName = name.trim();
 
-        if (group.isFull()) {
-            throw new RuntimeException("Группа переполнена! Максимум 8 человек.");
+        if (groupRepository.existsByName(trimmedName)) {
+            throw new RuntimeException("Группа с названием '" + trimmedName + "' уже существует!");
         }
 
-        UserEntity user = UserEntity.builder()
-                .username(name)
-                .group(group)
-                .visitsLeft(visits)
-                .maxVisits(visits)
+        GroupEntity newGroup = GroupEntity.builder()
+                .name(trimmedName)
                 .build();
 
-        return userRepository.save(user);
+        groupRepository.save(newGroup);
+
+        return "Группа '" + trimmedName + "' успешно создана";
     }
 }

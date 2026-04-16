@@ -12,7 +12,7 @@ import java.awt.*;
 public class AssignMemberDialog extends JDialog {
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
-    private final Runnable onSuccess; // Колбэк для обновления главной формы
+    private final Runnable onSuccess;
 
     public AssignMemberDialog(JFrame parent, UserRepository userRepository, GroupRepository groupRepository, Runnable onSuccess) {
         super(parent, "Назначить группу", true);
@@ -52,7 +52,7 @@ public class AssignMemberDialog extends JDialog {
             if (selectedUser != null && selectedGroup != null) {
                 selectedUser.setGroup(selectedGroup);
                 userRepository.save(selectedUser);
-                onSuccess.run(); // Вызываем обновление в MainFrame
+                onSuccess.run();
                 dispose();
             }
         });

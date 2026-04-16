@@ -17,24 +17,47 @@ public class AddGroupDialog extends JDialog {
     }
 
     private void init() {
-        setLayout(new FlowLayout());
-        setSize(300, 120);
+        setLayout(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        setSize(300, 130);
         setLocationRelativeTo(getOwner());
 
         JTextField nameField = new JTextField(15);
         JButton saveBtn = new JButton("Сохранить");
 
-        add(new JLabel("Название:"));
+        add(new JLabel("Название группы:"));
         add(nameField);
+        add(addSeparator());
         add(saveBtn);
 
         saveBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
-            if (!name.isEmpty()) {
+
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Пожалуйста, введите название группы",
+                        "Пустое поле",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            try {
                 gymService.addGroup(name);
+
                 onSuccess.run();
                 dispose();
+
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        ex.getMessage(),
+                        "Ошибка при создании",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
+    }
+
+    private Component addSeparator() {
+        return Box.createHorizontalStrut(100);
     }
 }

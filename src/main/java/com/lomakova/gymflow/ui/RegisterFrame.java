@@ -19,8 +19,7 @@ public class RegisterFrame extends JFrame {
 
     public void init() {
         setTitle("GymFlow - Регистрация");
-        setSize(400, 320); // Немного увеличим высоту
-        // 5 строк: Логин, Пароль, Роль, Абонемент, Кнопка
+        setSize(400, 320);
         setLayout(new GridLayout(5, 2, 10, 10));
         setLocationRelativeTo(null);
 
@@ -30,7 +29,6 @@ public class RegisterFrame extends JFrame {
 
         JLabel subscriptionLabel = new JLabel("  Абонемент:");
 
-        // Панель для выбора абонемента
         JRadioButton rb8 = new JRadioButton("8 зан.", true);
         JRadioButton rb16 = new JRadioButton("16 зан.");
         ButtonGroup bg = new ButtonGroup();
@@ -42,7 +40,6 @@ public class RegisterFrame extends JFrame {
 
         JButton registerBtn = new JButton("Создать аккаунт");
 
-        // Управление видимостью выбора абонемента (нужен только для ROLE_USER)
         roleCombo.addActionListener(e -> {
             boolean isUser = roleCombo.getSelectedItem() == Role.USER;
             subscriptionLabel.setVisible(isUser);
@@ -81,10 +78,9 @@ public class RegisterFrame extends JFrame {
                     .password(password)
                     .role(role);
 
-            // Если это USER, записываем выбранный абонемент
             if (role == Role.USER) {
                 userBuilder.maxVisits(selectedMax);
-                userBuilder.visitsLeft(selectedMax); // Сразу выдаем занятия
+                userBuilder.visitsLeft(selectedMax);
             }
 
             userRepository.save(userBuilder.build());

@@ -35,7 +35,7 @@ public class GroupEntity {
     @Column(name = "name", unique = true, nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "group", fetch = FetchType.EAGER)
     private List<UserEntity> members = new ArrayList<>();
 
     public boolean isFull() {

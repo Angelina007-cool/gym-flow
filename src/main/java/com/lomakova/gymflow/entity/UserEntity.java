@@ -54,15 +54,6 @@ public class UserEntity {
     @JoinColumn(name = "group_id")
     private GroupEntity group;
 
-    public void decrementVisit(boolean allPresent) {
-        if (allPresent || !excusedAbsence) {
-            if (visitsLeft > 0) {
-                visitsLeft--;
-            }
-        }
-        this.excusedAbsence = false;
-    }
-
     @Override
     public String toString() {
         return username + " (ID: " + id + ")";

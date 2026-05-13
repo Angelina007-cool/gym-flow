@@ -16,7 +16,7 @@ public class ExportService {
             writer.println("ОТЧЕТ ПО ГРУППЕ: " + groupName.toUpperCase());
             writer.println("Дата генерации: " + LocalDate.now());
             writer.println("==========================================");
-            writer.printf("%-20s | %-15s | %-10s%n", "Имя атлета", "Остаток", "Всего");
+            writer.printf("%-20s | %-15s | %-10s%n", "Имя спортсмена", "Остаток", "Всего");
             writer.println("------------------------------------------");
 
             for (UserEntity m : members) {

@@ -38,10 +38,6 @@ public class GroupEntity {
     @OneToMany(mappedBy = "group", fetch = FetchType.EAGER)
     private List<UserEntity> members = new ArrayList<>();
 
-    public boolean isFull() {
-        return members.size() >= 8;
-    }
-
     @Override
     public String toString() {
         return name;

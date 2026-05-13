@@ -13,11 +13,11 @@ public class StatisticsDialog extends JDialog {
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
 
-        String[] columns = {"Дата и время", "Атлет", "Группа", "Действие", "Остаток"};
+        String[] columns = {"Дата и время", "Спортсмен", "Группа", "Действие", "Остаток"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Запрещаем редактирование ячеек истории
+                return false;
             }
         };
 

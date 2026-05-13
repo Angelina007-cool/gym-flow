@@ -2,7 +2,6 @@ package com.lomakova.gymflow.ui;
 
 import com.lomakova.gymflow.entity.UserEntity;
 import com.lomakova.gymflow.enums.Role;
-import com.lomakova.gymflow.repository.GroupRepository;
 import com.lomakova.gymflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,7 +14,6 @@ import java.awt.*;
 public class RegisterFrame extends JFrame {
 
     private final UserRepository userRepository;
-    private final GroupRepository groupRepository;
 
     public void init() {
         setTitle("GymFlow - Регистрация");

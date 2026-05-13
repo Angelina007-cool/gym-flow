@@ -229,7 +229,7 @@ public class MainFrame extends JFrame {
                     : "Группа не назначена (обратитесь к админу)";
 
             StringBuilder profileInfo = new StringBuilder();
-            profileInfo.append("  ЛИЧНЫЙ КАБИНЕТ АТЛЕТА\n");
+            profileInfo.append("  ЛИЧНЫЙ КАБИНЕТ СПОРТСМЕНА\n");
             profileInfo.append("  ------------------------------------------\n");
             profileInfo.append("  Имя: ").append(currentUser.getUsername()).append("\n");
             profileInfo.append("  Группа: ").append(groupName).append("\n");
